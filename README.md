@@ -1,4 +1,4 @@
-# parsing_xpi_notas_corretagem
+# PARSING XPI's pdf 'NOTAS DE CORRETAGEM'
 Parsing and classifying information downloaded from XP Investimentos (Notas de Corretagem)  (Brokerage Notes)
 
 
