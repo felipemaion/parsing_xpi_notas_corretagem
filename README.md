@@ -4,6 +4,17 @@ Parsing and classifying information downloaded from XP Investimentos (Notas de C
 
 # HOW TO USE
 
+-  To download the notas de corretagens:
+    Login into your account, go to the page of the Brokeage Notes. Select the oldest file. 
+    Download it, as you normally would (I recommend using XP format)
+    Run the script 
+    ```python nc_auto.py```
+
+    It should download the rest of the files... NOTE: You cannot use your computer, nor move your mouse during the process... since it works identifying the controls of the page, and moving and clicking to do it.
+
+After that:
+- To Parse the information:
+
 put the files into the folder 'pdf' and run the script:
 
 ```ipython -i parse_pdfs.py```
