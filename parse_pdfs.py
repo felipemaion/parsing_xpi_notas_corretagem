@@ -1,33 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Script showing how to select only text that is contained in a given rectangle
-on a page.
 
-We use the page method 'getTextWords()' which delivers a list of all words.
-Every item contains the word's rectangle (given by its coordinates, not as a
-fitz.Rect in this case).
-From this list we subselect words positioned in the given rectangle (or are at
-least partially contained).
-We sort this sublist by ascending y-ccordinate, and then by ascending x value.
-Each original line of the rectangle is then reconstructed using the itertools
-'groupby' function.
-
-Remarks
--------
-1. The script puts words in the same line, if the y1 value of their bbox are
-   *exactly* equal. Allowing some tolerance here is imaginable, e.g. by
-   taking the fitz.IRect of the word rectangles instead.
-
-2. Reconstructed lines will contain words with exactly one space between them.
-   So any original multiple spaces will be ignored.
-"""
 from operator import itemgetter 
 from itertools import groupby
 import fitz
 import os
 import re
 import locale
+from datetime import datetime
+import requests
 
 try:
     locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
@@ -191,10 +172,15 @@ class Document:
             ### Get transactions for ações e fii:
             rl1 = page.searchFor("Bovespa - Depósito / Vista") 
             rl2 = page.searchFor("Resumo dos Negócios")       # rect list two
-            if rl1 and rl2:
+            if rl1:
+                if not rl2: 
+                    rl2 = [fitz.Rect(0,0,601,760)]
+                    print(rl2)
+                else:
+                    rl2 = [fitz.Rect(0,rl2[0].y0,601,rl2[0].y1)]
                 # From the two search itens, we start from far left to far right.
                 rl1 = [fitz.Rect(0,rl1[0].y0,601,rl1[0].y1)]
-                rl2 = [fitz.Rect(0,rl2[0].y0,601,rl2[0].y1)]
+                
                 
                 rect = rl1[0] | rl2[0]
         
@@ -222,7 +208,7 @@ class Document:
                 transactions = self.group(lines[begin_data:end_data], 2)
             
                 for transaction in transactions:
-                    if transaction and transaction[0][0].isnumeric():
+                    if transaction and transaction[0][0].isnumeric(): # [('1-BOVESPA',...),('5 - SOMA, etc.),]
                         print("Transaction (Stock/REIT): ",transaction)
                         negotiations.append(transaction)
         self.negotiations.append(negotiations)
@@ -373,7 +359,7 @@ class Document:
                     else:
                         print("\t {} {}: {}".format(tab, head,my_financial_resume[head]))
                 else:
-                    print("This Brokeage note seems to be a new kind! Day trade may be? Missing: {}".format(head))
+                    print("This Brokeage note seems to be a supported kind! Day trade may be? Missing: {}".format(head))
                     input()
             print("\nResumo:")
             if "Valor líquido das operações" in self.ncs_in_file[nc].keys():
@@ -419,11 +405,11 @@ class Document:
 base_path = os.path.dirname(os.path.realpath(__file__))
 
 my_files = os.path.join(base_path,"pdf")
-my_tests = os.path.join(base_path,"tests_pdfs")
+# my_files = os.path.join(base_path,"tests_pdfs")
 
-options = "/Users/maion/OneDrive/Documentos/Documentos Felipe/programs/ruby/Python/PyCharmProjects/IR/Notas Corretagem/pdf/240303-20180126-NC10439371.pdf"
+# options = "/Users/maion/OneDrive/Documentos/Documentos Felipe/programs/ruby/Python/PyCharmProjects/IR/Notas Corretagem/pdf/240303-20180126-NC10439371.pdf"
 
-brokeage_options = Document(os.path.join(my_files,options))
+# brokeage_options = Document(os.path.join(my_files,options))
 all_brokeage_notes = []
 for file in os.listdir(my_files):
     if file.endswith(".pdf"):
@@ -436,7 +422,7 @@ for file in os.listdir(my_files):
         file_name = str(brokeage_notes.account) + "-" + str(brokeage_notes.formatedDate) + "-NC" + "-".join(brokeage_id)
     if file != file_name + '.pdf':
         print('renaming "'+ os.path.join(my_files,file) + '" to "' + file_name + '.pdf"')
-        # os.system('rename "'+ os.path.join(my_files,file) + '" "' + file_name + '.pdf"')
+        #os.system('rename "'+ os.path.join(my_files,file) + '" "' + file_name + '.pdf"')
         os.system('mv "'+ os.path.join(my_files,file) + '" "' + os.path.join(my_files,file_name) + '.pdf"')
     print("-------")
 
@@ -458,6 +444,87 @@ def get_more_negotiations(all_brokeage_notes=all_brokeage_notes):
             biggest.append((mov, i))
 
     return all_brokeage_notes[max(biggest, key=lambda x:x[0])[1]]
+def get_all_negotiations(all_brokeage_notes=all_brokeage_notes):
+    all_negotiations = []
+    
+    for brokeage in all_brokeage_notes:
+        for negotiation in brokeage.negotiations:
+            if negotiation:
+                all_negotiations.append([negotiation, brokeage.date, brokeage.financial_resume['Custos Totais']])
+    return all_negotiations
+all_negotiations = get_all_negotiations() 
+
+
+fiis_cadastrados = ["ALZR","ARFI","AQLL","BCRI","BNFS","BBFI","BBPO","BBIM","BBRC","RDPD","RNDP","BCIA","BZLI","CARE","BRCO","BRIM","CRFF","CXRI","CPTS","CBOP","GRLV","HGLG","HGPO","HGRE","HGCR","HGRU","DLMT","DAMT","DOVL","ERPA","KINP","FIXX","VRTA","BMII","BTCR","MTRS","ANCR","FAED","BMLC","BRCR","FEXC","BCFF","FCFL","CNES","CEOC","THRA","FAMB","EDGA","ELDO","FLRP","HCRI","NSLU","HTMX","MAXR","NCHB","NVHO","PQDP","PATB","PRSV","RBRR","JRDM","SHDP","SAIC","TBOF","ALMI","TRNT","RECT","UBSR","VLOL","OUFF","WTSP","LVBI","BARI","BBVJ","BRHT","BPFF","BVAR","CXCE","CXTL","CTXT","CJFI","FLMA","EDFO","EURO","GESE","FIGS","ABCP","GTWR","HBTT","HUSC","FIIB","FINF","FMOF","MBRF","MGFF","MVFI","NPAR","OULG","PABY","FPNG","ESTQ","VPSI","FPAB","RBRF","RBRY","RBRP","FFCI","RBED","RBVA","RNGO","SFND","FISC","SCPF","SDIL","SHPH","TGAR","ONEF","TORM","TOUR","FVBI","VERE","FVPQ","FIVN","VTLT","VSHO","IRDM","KFOF","OUCY","GSFI","GGRC","RCFA","ATCR","HCTR","ATSA","HGBS","HRDF","HMOC","FOFT","HFOF","TFOF","HSML","RBBV","JPPA","JPPC","JSRE","JTPR","KNHY","KNRE","KNIP","KNRI","KNCR","LATR","LOFT","DMAC","MALL","MXRF","MFII","PRTS","SHOP","DRIT","NVIF","FTCE","OUJP","ORPD","PATC","PRSN","PLRI","PORD","PBLV","RSPD","RBDS","RBGS","FIIP","RBRD","RCRI","RBTS","DOMC","RDES","RBIV","RBCB","RBVO","SAAG","SADI","FISD","WPLZ","REIT","SPTW","SPAF","STRX","TSNC","TCPF","XTED","TRXL","V2CR","VGIR","VLJS","VILG","VISC","VOTS","XPCM","XPHT","XPIN","XPLG","XPML","YCHY"]
+
+carteira = []
+def get_all_fii(all_negotiations=all_negotiations, carteira=carteira):   
+    mult = 1
+    
+    for assets, date, custos in all_negotiations:
+        print(assets, date, custos)
+        custos_mov = locale.atof(custos[0][2:-2])/len(assets)
+
+        for asset in assets: 
+            # if asset[1][0:3] == 'FII': 
+            #     fii.append(asset) 
+            if asset[1]:    
+                
+                code = re.findall(r"[A-Z]{4}[11]{2}[B]?", asset[1])
+                print(code)
+                if code:
+                    if code[0][:4] in fiis_cadastrados:
+                        if asset[0][-1] == "D":
+                            mult = 1
+                        if asset[0][-1] == "C":
+                            mult = -1
+                        my_split = asset[0].split(" ")
+                        quantidade = locale.atoi(my_split[-4]) * mult
+                        valor_total = my_split[-2]
+                        valor_cota = my_split[-3]
+                        carteira.append([date, code[0], quantidade, valor_cota, valor_total,str(round(custos_mov,2)).replace(".",",")])
+                        # if code[0] in carteira:
+                        #     carteira[code[0]] += locale.atoi(asset[0].split(" ")[-4]) * mult
+                        # else:
+                        #     carteira[code[0]] = locale.atoi(asset[0].split(" ")[-4]) * mult
+
+                    # DATA CODIGO QTD PREÇO_COTA VALOR_TOTAL CUSTO
+    return carteira
+
+    # REGEX: "[A-Z]{4}[0-9]{2}[B]?"
+  
+all_fii = get_all_fii()
+
+
+def format_date(date):
+    # TNC a porra do Locale dá erro com pt-Br e não funciona converter datatime como de costume.
+    splited_date = date.split("/")
+    return "{}-{}-{}".format(splited_date[-1],splited_date[-2],splited_date[-3])
+
+def send_to_api(carteira):
+    for mov in carteira:
+        print(mov)
+        multi = 1
+        if mov[2] < 0: 
+            multi = -1       
+        r = requests.post("http://127.0.0.1:8000/api/aporte/", data={'date':format_date(mov[0]),'amount':multi*locale.atof(mov[4]),'grupo':mov[1]})
+        print(r.status_code, r.reason)
+
+## Ver especificações de títulos (ER, MB, etc CI)
+def get_more_trades(all_brokeage_notes=all_brokeage_notes):
+    # Look for the day where # of @ transactions[i][j][1] == 'Quantidade Total: Preço Médio:' (MORE # OF BUYS/SELLF OF dif assets)
+    biggest = []
+    for i, brokeage in enumerate(all_brokeage_notes):
+        count = 0
+        if brokeage.transactions[0]:
+            for trade in brokeage.transactions[0]:
+                if trade[1] == "Quantidade Total: Preço Médio:":
+                    count += 1
+            biggest.append((count, i))
+    return all_brokeage_notes[max(biggest, key=lambda x:x[0])[1]]
+
+
+gmt = get_more_trades()
 
 def get_more_assets(all_brokeage_notes=all_brokeage_notes):
     # Returns the Index of the Brokeage Notes that has more transactions
@@ -467,7 +534,7 @@ def get_more_assets(all_brokeage_notes=all_brokeage_notes):
         # print(i)
         if brokeage.transactions:
             if brokeage.transactions[0]:
-                mov += len(brokeage.transactions[0])
+                mov += len(brokeage.transactions[0]) # Why I did an increment here?? Why?! Keep it... (could it be because of Options?)
             try: 
                 if brokeage.transactions[1]:
                     mov += len(brokeage.transactions[1])
@@ -489,24 +556,73 @@ more_negotiations_financial_resume = more_negotiations.financial_resume
 
 # custos_totais = vc - vl 
 
+carteira_ciel = [] 
+def get_all_ciel3(all_negotiations=all_negotiations, carteira=[]): 
+    carteira = []  
+    mult = 1
+    
+    for assets, date, custos in all_negotiations:
+        # print(assets, date, custos)
+        custos_mov = locale.atof(custos[0][2:])/len(assets)
+
+        for asset in assets: 
+            # if asset[1][0:3] == 'FII': 
+            #     fii.append(asset) 
+            if asset[1]:    
+                
+                code = re.findall(r"[CIEL3]{5}", asset[1])
+                
+                if code:
+                    # print("CODE:",code[0][:5])
+                    if code[0][:5] == 'CIEL3':
+                        # print("ASSET:", asset[0])
+                        if asset[0][-1] == "D":
+                            mult = 1
+                        if asset[0][-1] == "C":
+                            mult = -1
+                        my_split = asset[0].split(" ")
+                        quantidade = locale.atoi(my_split[-4]) * mult
+                        valor_total = my_split[-2]
+                        valor_cota = my_split[-3]
+                        carteira.append([date, code[0], quantidade, valor_cota, valor_total,str(round(custos_mov,2)).replace(".",","), mult*locale.atof(valor_total) + locale.atof(str(round(custos_mov,2)).replace(".",","))])
+                        # if code[0] in carteira:
+                        #     carteira[code[0]] += locale.atoi(asset[0].split(" ")[-4]) * mult
+                        # else:
+                        #     carteira[code[0]] = locale.atoi(asset[0].split(" ")[-4]) * mult
+
+                    # DATA CODIGO QTD PREÇO_COTA VALOR_TOTAL CUSTO
+    return carteira
+
+    # REGEX: "[A-Z]{4}[0-9]{2}[B]?"
+  
+all_ciel3 = get_all_ciel3()
+
+
+
+
 
 # Meus gastos com corretagem até hoje (sem day trade!):
 sum_costs =0 
 sum_net_for = 0
 sum_neg = 0
+sum_corretagem = 0
 for brokeage in all_brokeage_notes: 
     if brokeage.financial_resume: 
         sum_costs += locale.atof(re.findall(r"(?:[1-9]\d{0,2}(?:\.\d{3})*|0)(?:,\d{1,2})",brokeage.financial_resume["Custos Totais"][0])[0])
         sum_net_for += to_money(brokeage.financial_resume["Líquido para"][0]) 
+        sum_corretagem += to_money(brokeage.financial_resume["Corretagem"][0])
         # print(brokeage.date)
         for negotiations in brokeage.negotiations:
             for negotiation in negotiations:
                 if negotiation:
                     sum_neg += to_money(re.findall(r"(?:[1-9]\d{0,2}(?:\.\d{3})*|0)(?:,\d{1,2})[ ][CD]{1}",negotiation[0])[0])
-sum_costs = locale.currency( sum_costs, grouping = True )
-sum_net_for = locale.currency( sum_net_for, grouping = True )
-sum_neg = locale.currency( sum_neg, grouping = True )
+str_sum_costs = locale.currency( sum_costs, grouping = True )
+str_net_for = locale.currency( sum_net_for, grouping = True )
+str_neg = locale.currency( sum_neg, grouping = True )
+str_corretagem = locale.currency( sum_corretagem, grouping = True )
 
 print("Total Costs:", sum_costs)
 print("Total Net (for):", sum_net_for)
 print("Total Negotiations:", sum_neg)
+print("Total Corretagem:", sum_corretagem)
+print("Negociado + Corretagem:", (sum_neg + sum_corretagem))
